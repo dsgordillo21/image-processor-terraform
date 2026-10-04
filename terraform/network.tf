@@ -215,3 +215,177 @@ resource "aws_route_table_association" "private_b" {
   subnet_id      = aws_subnet.private_b.id
   route_table_id = aws_route_table.private_b.id
 }
+
+# ==========================================
+# Security Groups
+# ==========================================
+
+resource "aws_security_group" "upload_lambda" {
+  name        = "${local.name_prefix}-sg-upload-lambda"
+  description = "Security group for upload Lambda"
+  vpc_id      = aws_vpc.main.id
+
+  tags = {
+    Name        = "${local.name_prefix}-sg-upload-lambda"
+    Environment = local.environment
+  }
+}
+
+resource "aws_security_group" "crop_lambda" {
+  name        = "${local.name_prefix}-sg-crop-lambda"
+  description = "Security group for crop Lambda"
+  vpc_id      = aws_vpc.main.id
+
+  tags = {
+    Name        = "${local.name_prefix}-sg-crop-lambda"
+    Environment = local.environment
+  }
+}
+
+resource "aws_security_group" "vpce_sqs" {
+  name        = "${local.name_prefix}-sg-vpce-sqs"
+  description = "Security group for SQS VPC endpoint"
+  vpc_id      = aws_vpc.main.id
+
+  tags = {
+    Name        = "${local.name_prefix}-sg-vpce-sqs"
+    Environment = local.environment
+  }
+}
+
+# ==========================================
+# AWS Managed Prefix List for S3
+# ==========================================
+
+data "aws_prefix_list" "s3" {
+  name = "com.amazonaws.${var.aws_region}.s3"
+}
+
+# ==========================================
+# Upload Lambda - Outbound Rules
+# ==========================================
+
+resource "aws_security_group_rule" "upload_to_s3" {
+  type              = "egress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  security_group_id = aws_security_group.upload_lambda.id
+
+  prefix_list_ids = [
+    data.aws_prefix_list.s3.id
+  ]
+
+  description = "HTTPS from upload Lambda to S3"
+}
+
+resource "aws_security_group_rule" "upload_to_sqs" {
+  type                     = "egress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.upload_lambda.id
+  source_security_group_id = aws_security_group.vpce_sqs.id
+
+  description = "HTTPS from upload Lambda to SQS endpoint"
+}
+
+# ==========================================
+# Crop Lambda - Outbound Rules
+# ==========================================
+
+resource "aws_security_group_rule" "crop_to_s3" {
+  type              = "egress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  security_group_id = aws_security_group.crop_lambda.id
+
+  prefix_list_ids = [
+    data.aws_prefix_list.s3.id
+  ]
+
+  description = "HTTPS from crop Lambda to S3"
+}
+
+resource "aws_security_group_rule" "crop_to_sqs" {
+  type                     = "egress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.crop_lambda.id
+  source_security_group_id = aws_security_group.vpce_sqs.id
+
+  description = "HTTPS from crop Lambda to SQS endpoint"
+}
+
+# ==========================================
+# SQS VPC Endpoint - Inbound Rules
+# ==========================================
+
+resource "aws_security_group_rule" "sqs_from_upload" {
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.vpce_sqs.id
+  source_security_group_id = aws_security_group.upload_lambda.id
+
+  description = "HTTPS from upload Lambda"
+}
+
+resource "aws_security_group_rule" "sqs_from_crop" {
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.vpce_sqs.id
+  source_security_group_id = aws_security_group.crop_lambda.id
+
+  description = "HTTPS from crop Lambda"
+}
+
+# ==========================================
+# S3 Gateway VPC Endpoint
+# ==========================================
+
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+
+  route_table_ids = [
+    aws_route_table.private_a.id,
+    aws_route_table.private_b.id
+  ]
+
+  tags = {
+    Name        = "${local.name_prefix}-vpce-s3"
+    Environment = local.environment
+  }
+}
+
+# ==========================================
+# SQS Interface VPC Endpoint
+# ==========================================
+
+resource "aws_vpc_endpoint" "sqs" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.sqs"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+
+  subnet_ids = [
+    aws_subnet.private_a.id,
+    aws_subnet.private_b.id
+  ]
+
+  security_group_ids = [
+    aws_security_group.vpce_sqs.id
+  ]
+
+  tags = {
+    Name        = "${local.name_prefix}-vpce-sqs"
+    Environment = local.environment
+  }
+}
