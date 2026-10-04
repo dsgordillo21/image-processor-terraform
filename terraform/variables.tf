@@ -7,7 +7,6 @@ variable "aws_region" {
 variable "aws_profile" {
   description = "Perfil de AWS CLI utilizado para autenticar con AWS"
   type        = string
-  default     = "mermaid"
 }
 
 variable "project_name" {
