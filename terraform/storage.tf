@@ -1,14 +1,11 @@
-# ==========================================
-# S3 Bucket
-# ==========================================
+
 
 data "aws_caller_identity" "current" {}
 
 resource "aws_s3_bucket" "images" {
   bucket = "${local.name_prefix}-images-${data.aws_caller_identity.current.account_id}"
 
-  # Permite eliminar el bucket con terraform destroy
-  # aunque contenga archivos de las pruebas.
+
   force_destroy = true
 
   tags = {
@@ -17,7 +14,7 @@ resource "aws_s3_bucket" "images" {
   }
 }
 
-# S3 Versioning
+
 
 
 resource "aws_s3_bucket_versioning" "images" {
@@ -28,9 +25,7 @@ resource "aws_s3_bucket_versioning" "images" {
   }
 }
 
-# ==========================================
-# S3 Encryption
-# ==========================================
+
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "images" {
   bucket = aws_s3_bucket.images.id
@@ -42,9 +37,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "images" {
   }
 }
 
-# ==========================================
-# S3 Lifecycle
-# ==========================================
+
 
 resource "aws_s3_bucket_lifecycle_configuration" "images" {
   bucket = aws_s3_bucket.images.id
