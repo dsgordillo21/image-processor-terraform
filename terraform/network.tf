@@ -1,6 +1,4 @@
-# ==========================================
 # VPC
-# ==========================================
 
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
@@ -13,17 +11,13 @@ resource "aws_vpc" "main" {
   }
 }
 
-# ==========================================
 # Availability Zones
-# ==========================================
 
 data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# ==========================================
 # Public Subnets
-# ==========================================
 
 resource "aws_subnet" "public_a" {
   vpc_id                  = aws_vpc.main.id
@@ -49,9 +43,7 @@ resource "aws_subnet" "public_b" {
   }
 }
 
-# ==========================================
 # Private Subnets
-# ==========================================
 
 resource "aws_subnet" "private_a" {
   vpc_id            = aws_vpc.main.id
@@ -75,9 +67,7 @@ resource "aws_subnet" "private_b" {
   }
 }
 
-# ==========================================
 # Internet Gateway
-# ==========================================
 
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
@@ -88,9 +78,7 @@ resource "aws_internet_gateway" "main" {
   }
 }
 
-# ==========================================
 # Elastic IPs for NAT Gateways
-# ==========================================
 
 resource "aws_eip" "nat_a" {
   domain = "vpc"
@@ -110,9 +98,7 @@ resource "aws_eip" "nat_b" {
   }
 }
 
-# ==========================================
 # NAT Gateways
-# ==========================================
 
 resource "aws_nat_gateway" "nat_a" {
   allocation_id = aws_eip.nat_a.id
@@ -142,9 +128,7 @@ resource "aws_nat_gateway" "nat_b" {
   }
 }
 
-# ==========================================
 # Public Route Table
-# ==========================================
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
@@ -170,9 +154,7 @@ resource "aws_route_table_association" "public_b" {
   route_table_id = aws_route_table.public.id
 }
 
-# ==========================================
 # Private Route Table AZ-a
-# ==========================================
 
 resource "aws_route_table" "private_a" {
   vpc_id = aws_vpc.main.id
@@ -193,9 +175,7 @@ resource "aws_route_table_association" "private_a" {
   route_table_id = aws_route_table.private_a.id
 }
 
-# ==========================================
 # Private Route Table AZ-b
-# ==========================================
 
 resource "aws_route_table" "private_b" {
   vpc_id = aws_vpc.main.id
@@ -216,9 +196,7 @@ resource "aws_route_table_association" "private_b" {
   route_table_id = aws_route_table.private_b.id
 }
 
-# ==========================================
 # Security Groups
-# ==========================================
 
 resource "aws_security_group" "upload_lambda" {
   name        = "${local.name_prefix}-sg-upload-lambda"
@@ -253,17 +231,13 @@ resource "aws_security_group" "vpce_sqs" {
   }
 }
 
-# ==========================================
 # AWS Managed Prefix List for S3
-# ==========================================
 
 data "aws_prefix_list" "s3" {
   name = "com.amazonaws.${var.aws_region}.s3"
 }
 
-# ==========================================
 # Upload Lambda - Outbound Rules
-# ==========================================
 
 resource "aws_security_group_rule" "upload_to_s3" {
   type              = "egress"
@@ -290,9 +264,7 @@ resource "aws_security_group_rule" "upload_to_sqs" {
   description = "HTTPS from upload Lambda to SQS endpoint"
 }
 
-# ==========================================
 # Crop Lambda - Outbound Rules
-# ==========================================
 
 resource "aws_security_group_rule" "crop_to_s3" {
   type              = "egress"
@@ -319,9 +291,7 @@ resource "aws_security_group_rule" "crop_to_sqs" {
   description = "HTTPS from crop Lambda to SQS endpoint"
 }
 
-# ==========================================
 # SQS VPC Endpoint - Inbound Rules
-# ==========================================
 
 resource "aws_security_group_rule" "sqs_from_upload" {
   type                     = "ingress"
@@ -345,9 +315,7 @@ resource "aws_security_group_rule" "sqs_from_crop" {
   description = "HTTPS from crop Lambda"
 }
 
-# ==========================================
 # S3 Gateway VPC Endpoint
-# ==========================================
 
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.main.id
@@ -359,15 +327,31 @@ resource "aws_vpc_endpoint" "s3" {
     aws_route_table.private_b.id
   ]
 
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = "*"
+
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject"
+        ]
+
+        Resource = "${aws_s3_bucket.images.arn}/*"
+      }
+    ]
+  })
+
   tags = {
     Name        = "${local.name_prefix}-vpce-s3"
     Environment = local.environment
   }
 }
 
-# ==========================================
 # SQS Interface VPC Endpoint
-# ==========================================
 
 resource "aws_vpc_endpoint" "sqs" {
   vpc_id              = aws_vpc.main.id
