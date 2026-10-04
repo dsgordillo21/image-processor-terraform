@@ -68,3 +68,21 @@ resource "aws_s3_bucket_lifecycle_configuration" "images" {
     }
   }
 }
+
+
+
+
+
+resource "aws_s3_bucket_notification" "images" {
+  bucket = aws_s3_bucket.images.id
+
+  queue {
+    queue_arn     = aws_sqs_queue.image_queue.arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_prefix = "uploads/"
+  }
+
+  depends_on = [
+    aws_sqs_queue_policy.allow_s3
+  ]
+}
