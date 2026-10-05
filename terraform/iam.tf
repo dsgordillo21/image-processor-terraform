@@ -51,19 +51,9 @@ resource "aws_iam_role_policy" "lambda_upload_policy" {
           "s3:PutObject"
         ]
 
-        Resource = "${aws_s3_bucket.images.arn}/*"
+        Resource = "${aws_s3_bucket.images.arn}/uploads/*"
       },
-      {
-        Effect = "Allow"
 
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-
-        Resource = "*"
-      }
     ]
   })
 }
@@ -79,11 +69,19 @@ resource "aws_iam_role_policy" "lambda_crop_policy" {
         Effect = "Allow"
 
         Action = [
-          "s3:GetObject",
+          "s3:GetObject"
+        ]
+
+        Resource = "${aws_s3_bucket.images.arn}/uploads/*"
+      },
+      {
+        Effect = "Allow"
+
+        Action = [
           "s3:PutObject"
         ]
 
-        Resource = "${aws_s3_bucket.images.arn}/*"
+        Resource = "${aws_s3_bucket.images.arn}/processed/*"
       },
       {
         Effect = "Allow"
@@ -91,33 +89,33 @@ resource "aws_iam_role_policy" "lambda_crop_policy" {
         Action = [
           "sqs:ReceiveMessage",
           "sqs:DeleteMessage",
-          "sqs:GetQueueAttributes"
+          "sqs:GetQueueAttributes",
+          "sqs:ChangeMessageVisibility"
         ]
 
         Resource = aws_sqs_queue.image_queue.arn
-      },
-      {
-        Effect = "Allow"
-
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-
-        Action = [
-          "ec2:CreateNetworkInterface",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DeleteNetworkInterface"
-        ]
-
-        Resource = "*"
       }
+
+
     ]
   })
+}
+resource "aws_iam_role_policy_attachment" "upload_vpc_access" {
+  role       = aws_iam_role.lambda_upload_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "crop_vpc_access" {
+  role       = aws_iam_role.lambda_crop_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "upload_basic_execution" {
+  role       = aws_iam_role.lambda_upload_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "crop_basic_execution" {
+  role       = aws_iam_role.lambda_crop_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
