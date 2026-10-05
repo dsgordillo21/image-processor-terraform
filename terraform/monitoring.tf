@@ -8,6 +8,15 @@ resource "aws_cloudwatch_log_group" "crop" {
   }
 }
 
+resource "aws_sns_topic" "dlq_alerts" {
+  name = "${local.name_prefix}-dlq-alerts"
+
+  tags = {
+    Name        = "${local.name_prefix}-dlq-alerts"
+    Environment = local.environment
+  }
+}
+
 resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
   alarm_name          = "${local.name_prefix}-dlq-messages"
   alarm_description   = "Alarma cuando existen mensajes visibles en la DLQ"
@@ -25,6 +34,10 @@ resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
   }
 
   treat_missing_data = "notBreaching"
+
+  alarm_actions = [
+    aws_sns_topic.dlq_alerts.arn
+  ]
 
   tags = {
     Name        = "${local.name_prefix}-dlq-alarm"

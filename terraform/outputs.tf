@@ -17,3 +17,8 @@ output "dlq_alarm_name" {
   description = "Nombre de la alarma de CloudWatch asociada a la DLQ"
   value       = aws_cloudwatch_metric_alarm.dlq_messages.alarm_name
 }
+
+output "dlq_sns_topic_arn" {
+  description = "ARN del topic SNS utilizado por la alarma de la DLQ"
+  value       = aws_sns_topic.dlq_alerts.arn
+}

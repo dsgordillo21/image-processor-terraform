@@ -11,6 +11,13 @@ resource "aws_lambda_function" "crop" {
 
   source_code_hash = filebase64sha256("../lambda/crop/crop-lambda.zip")
 
+  environment {
+    variables = {
+      S3_BUCKET        = aws_s3_bucket.images.bucket
+      PROCESSED_PREFIX = "processed/"
+    }
+  }
+
   vpc_config {
     subnet_ids = [
       aws_subnet.private_a.id,
@@ -31,6 +38,12 @@ resource "aws_lambda_function" "crop" {
 resource "aws_lambda_event_source_mapping" "crop_sqs" {
   event_source_arn = aws_sqs_queue.image_queue.arn
   function_name    = aws_lambda_function.crop.arn
-  batch_size       = 1
-  enabled          = true
+
+  batch_size = 5
+
+  function_response_types = [
+    "ReportBatchItemFailures"
+  ]
+
+  enabled = true
 }
