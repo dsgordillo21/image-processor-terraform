@@ -1,0 +1,9 @@
+{
+  "name": "image-processor-upload",
+  "version": "1.0.0",
+  "description": "Lambda para subir imagenes al bucket S3",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0"
+  }
+}
